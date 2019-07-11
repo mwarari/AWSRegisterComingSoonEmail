@@ -13,6 +13,7 @@
 import os
 import boto3
 from botocore.exceptions import ClientError
+import json
 
 
 def register_email(event, context):
@@ -36,7 +37,8 @@ def register_email(event, context):
     SUBJECT = "Coming Soon Email Registration from " + os.environ['SITE_NAME']
 
     # The email body for recipients with non-HTML email clients.
-    BODY_TEXT = 'New Email From {}\r\nA new user wants to be notified when {} website becomes available.'.format(event['Email'], os.environ['SITE_NAME'])
+    BODY_TEXT = 'New Email From {}\r\nA new user wants to be notified when {} website becomes available.'.format(
+        event['queryStringParameters']['Email'], os.environ['SITE_NAME'])
 
     # The HTML body of the email.
     BODY_HTML = """<html>
@@ -46,7 +48,7 @@ def register_email(event, context):
       <p>A new user wants to be notified when {} website becomes available.</a>.</p>
     </body>
     </html>
-                """.format(event['Email'], os.environ['SITE_NAME'])
+                """.format(event['queryStringParameters']['Email'], os.environ['SITE_NAME'])
 
     # The character encoding for the email.
     CHARSET = "UTF-8"
@@ -85,7 +87,19 @@ def register_email(event, context):
             # ConfigurationSetName=CONFIGURATION_SET,
         )
     # Send error to log if something goes wrong.
-    except ClientError as e:
-        return e.response['Error']['Message']
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps({
+                'input': event,
+                'error': e.response['Error']['Message']})
+        }
+
     else:
-        return "Email sent! Message ID:" + response['MessageId']
+        return {
+            'statusCode': 301,
+            'headers': {
+                'Location': "http://" + os.environ['SITE_NAME']
+            },
+            'body': None
+        }
